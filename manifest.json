@@ -6,7 +6,7 @@
     },
     {
       "repository": "https://github.com/OwnGoalStudio/GhostVT",
-      "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
+      "architectures": ["iphoneos-arm64e", "iphoneos-arm64", "xros-arm64e"]
     },
     {
       "repository": "https://github.com/OwnGoalStudio/kk",
