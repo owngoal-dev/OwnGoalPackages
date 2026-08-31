@@ -109,11 +109,31 @@ jobs:
             exit 1
           fi
 
-          while read -r _ index_name; do
-            curl --fail --silent --show-error \
-              "$repository_url/$index_name" \
-              --output "$verification_dir/indexes/$index_name"
-          done < "$verification_dir/checksums"
+          # The CDN in front of the pages deployment can serve a stale
+          # index for a little while after a successful deploy (the
+          # Release above is fetched with a cache-buster; the indexes are
+          # deliberately fetched the way a real client fetches them). So
+          # the verification is tried up to three times, at least thirty
+          # seconds apart, before it is called a failure.
+          verify_once() {
+            rm -rf -- "$verification_dir/indexes"
+            mkdir "$verification_dir/indexes"
+            while read -r _ index_name; do
+              curl --fail --silent --show-error \
+                "$repository_url/$index_name" \
+                --output "$verification_dir/indexes/$index_name" || return 1
+            done < "$verification_dir/checksums"
+            (cd "$verification_dir/indexes" && sha256sum --check "$verification_dir/checksums")
+          }
 
-          cd "$verification_dir/indexes"
-          sha256sum --check "$verification_dir/checksums"
+          for attempt in 1 2 3; do
+            if verify_once; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "attempt $attempt did not match (the CDN can lag the deploy); retrying in 30s" >&2
+              sleep 30
+            fi
+          done
+          echo "package indexes still do not match the Release after 3 attempts" >&2
+          exit 1
