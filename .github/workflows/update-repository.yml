@@ -29,6 +29,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      # What this build produced, for the verify job to wait for: the CDN
+      # in front of Pages keeps serving the previous deploy's files for up
+      # to their max-age, and a cache-busting query string does not reach
+      # past it, so the served files can only be judged against these.
+      release_sha256: ${{ steps.checksums.outputs.release }}
+      packages_sha256: ${{ steps.checksums.outputs.packages }}
+      packages_xz_sha256: ${{ steps.checksums.outputs.packages_xz }}
 
     steps:
       - name: Check out repository
@@ -45,6 +53,14 @@ jobs:
           # the default token only raises the public API rate limit.
           PACKAGE_FETCH_TOKEN: ${{ secrets.PACKAGE_FETCH_TOKEN || secrets.GITHUB_TOKEN }}
         run: ./scripts/update-repository.sh
+
+      - name: Record index checksums
+        id: checksums
+        run: |
+          for name in Release Packages Packages.xz; do
+            key="$(echo "$name" | tr '[:upper:].' '[:lower:]_')"
+            echo "$key=$(sha256sum "_site/$name" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          done
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
@@ -72,68 +88,68 @@ jobs:
         uses: actions/deploy-pages@v5
 
   verify:
-    needs: deploy
+    needs: [build, deploy]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Verify deployed package index hashes
+      # A client fetches Release and then the indexes it names, so the
+      # repository is only usable once every one of those files is the
+      # one this build wrote. The CDN in front of Pages hands out the
+      # previous deploy's copy of a file until its max-age (600s) runs
+      # out — per file, so Packages can be current while Release is
+      # still the old one, which is exactly the Hash Sum mismatch a
+      # client would see — and a cache-busting query string does not
+      # get past it. So each served file is compared with the checksum
+      # the build job recorded, and the check waits out the max-age
+      # before calling the deploy a failure.
+      - name: Verify the served repository is this build
         env:
           REPOSITORY_URL: ${{ needs.deploy.outputs.page_url }}
+          EXPECTED_RELEASE: ${{ needs.build.outputs.release_sha256 }}
+          EXPECTED_PACKAGES: ${{ needs.build.outputs.packages_sha256 }}
+          EXPECTED_PACKAGES_XZ: ${{ needs.build.outputs.packages_xz_sha256 }}
         run: |
+          for expected in "$EXPECTED_RELEASE" "$EXPECTED_PACKAGES" "$EXPECTED_PACKAGES_XZ"; do
+            if [[ ! "$expected" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "the build job recorded no index checksums" >&2
+              exit 1
+            fi
+          done
+
           verification_dir="$(mktemp -d)"
           trap 'rm -rf -- "$verification_dir"' EXIT
-          mkdir "$verification_dir/indexes"
-
           repository_url="${REPOSITORY_URL%/}"
-          curl --fail --silent --show-error \
-            "$repository_url/Release?deployment=$GITHUB_SHA" \
-            --output "$verification_dir/Release"
 
-          awk '
-            /^SHA256:$/ {
-              in_sha256 = 1
-              next
-            }
-
-            /^[A-Za-z0-9]+:$/ {
-              in_sha256 = 0
-            }
-
-            in_sha256 && $3 ~ /^Packages(\.[A-Za-z0-9]+)?$/ {
-              print $1 "  " $3
-            }
-          ' "$verification_dir/Release" > "$verification_dir/checksums"
-
-          if [[ ! -s "$verification_dir/checksums" ]]; then
-            echo "Release does not contain any package indexes." >&2
-            exit 1
-          fi
-
-          # The CDN in front of the pages deployment can serve a stale
-          # index for a little while after a successful deploy (the
-          # Release above is fetched with a cache-buster; the indexes are
-          # deliberately fetched the way a real client fetches them). So
-          # the verification is tried up to three times, at least thirty
-          # seconds apart, before it is called a failure.
-          verify_once() {
-            rm -rf -- "$verification_dir/indexes"
-            mkdir "$verification_dir/indexes"
-            while read -r _ index_name; do
-              curl --fail --silent --show-error \
-                "$repository_url/$index_name" \
-                --output "$verification_dir/indexes/$index_name" || return 1
-            done < "$verification_dir/checksums"
-            (cd "$verification_dir/indexes" && sha256sum --check "$verification_dir/checksums")
+          # Fetched the way a client fetches them: plain URLs, no cache
+          # buster, so what passes here is what an apt on a device gets.
+          served_sha256() {
+            curl --fail --silent --show-error "$repository_url/$1" \
+              --output "$verification_dir/$1" || return 1
+            sha256sum "$verification_dir/$1" | cut -d' ' -f1
           }
 
-          for attempt in 1 2 3; do
+          verify_once() {
+            local stale=()
+            [[ "$(served_sha256 Release)" == "$EXPECTED_RELEASE" ]] || stale+=(Release)
+            [[ "$(served_sha256 Packages)" == "$EXPECTED_PACKAGES" ]] || stale+=(Packages)
+            [[ "$(served_sha256 Packages.xz)" == "$EXPECTED_PACKAGES_XZ" ]] || stale+=(Packages.xz)
+            if ((${#stale[@]} == 0)); then
+              return 0
+            fi
+            echo "still serving the previous deploy: ${stale[*]}" >&2
+            return 1
+          }
+
+          # 24 attempts, 30s apart: twelve minutes, past the 600s max-age
+          # plus the time the edge takes to notice the origin changed.
+          for attempt in $(seq 1 24); do
             if verify_once; then
+              echo "the served repository is this build (attempt $attempt)"
               exit 0
             fi
-            if [[ "$attempt" -lt 3 ]]; then
-              echo "attempt $attempt did not match (the CDN can lag the deploy); retrying in 30s" >&2
+            if [[ "$attempt" -lt 24 ]]; then
               sleep 30
             fi
           done
-          echo "package indexes still do not match the Release after 3 attempts" >&2
+          echo "the served repository still is not this build after twelve minutes" >&2
           exit 1
