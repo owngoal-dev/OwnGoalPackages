@@ -23,6 +23,10 @@
     {
       "repository": "https://github.com/OwnGoalStudio/fastfetch",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
+    },
+    {
+      "repository": "https://github.com/OwnGoalStudio/fish",
+      "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     }
   ]
 }
