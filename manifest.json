@@ -17,6 +17,10 @@
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
+      "repository": "https://github.com/owngoal-dev/claude",
+      "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
+    },
+    {
       "repository": "https://github.com/owngoal-dev/grok",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
