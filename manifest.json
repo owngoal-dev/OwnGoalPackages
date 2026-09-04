@@ -1,31 +1,31 @@
 {
   "packages": [
     {
-      "repository": "https://github.com/OwnGoalStudio/CocoaInspector",
+      "repository": "https://github.com/owngoal-dev/CocoaInspector",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/GhostVT",
+      "repository": "https://github.com/owngoal-dev/iGhostVT",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64", "xros-arm64e"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/kk",
+      "repository": "https://github.com/owngoal-dev/kk",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/codex",
+      "repository": "https://github.com/owngoal-dev/codex",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/grok",
+      "repository": "https://github.com/owngoal-dev/grok",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/fastfetch",
+      "repository": "https://github.com/owngoal-dev/fastfetch",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
     {
-      "repository": "https://github.com/OwnGoalStudio/fish",
+      "repository": "https://github.com/owngoal-dev/fish",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     }
   ]

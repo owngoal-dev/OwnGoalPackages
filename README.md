@@ -35,7 +35,7 @@ Add an entry to `manifest.json`:
 {
   "packages": [
     {
-      "repository": "https://github.com/OwnGoalStudio/CocoaInspector",
+      "repository": "https://github.com/owngoal-dev/CocoaInspector",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     }
   ]

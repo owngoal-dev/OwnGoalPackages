@@ -119,7 +119,7 @@
   load().catch((error) => {
     console.error(error);
     showStatus(
-      'Package list is unavailable right now — browse on <a href="https://github.com/OwnGoalStudio">GitHub</a>.',
+      'Package list is unavailable right now — browse on <a href="https://github.com/owngoal-dev">GitHub</a>.',
     );
   });
 })();
