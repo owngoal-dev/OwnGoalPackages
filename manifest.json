@@ -9,6 +9,10 @@
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64", "xros-arm64e"]
     },
     {
+      "repository": "https://github.com/owngoal-dev/Mako",
+      "architectures": ["iphoneos-arm64e"]
+    },
+    {
       "repository": "https://github.com/owngoal-dev/kk",
       "architectures": ["iphoneos-arm64e", "iphoneos-arm64"]
     },
